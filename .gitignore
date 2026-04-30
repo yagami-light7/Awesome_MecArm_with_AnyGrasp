@@ -137,3 +137,6 @@ Makefile
 # Do NOT ignore mec_arm_model/ by default.
 # Your URDF, STL meshes, launch/config files are project assets.
 # mec_arm_model/
+
+.codex
+.TimeRecord
