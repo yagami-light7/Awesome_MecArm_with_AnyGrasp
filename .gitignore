@@ -138,5 +138,5 @@ Makefile
 # Your URDF, STL meshes, launch/config files are project assets.
 # mec_arm_model/
 
-.codex
-.TimeRecord
+.codex/
+.TimeRecord/
