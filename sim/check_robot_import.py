@@ -1,6 +1,13 @@
 import time
 import pybullet as p
-from sim.robot_loader import connect_pybullet, default_robot_spec, load_robot
+from sim.robot_loader import (
+    connect_pybullet, 
+    default_robot_spec, 
+    get_end_effector_pose,
+    reset_arm_joints,
+    load_robot,
+    reset_arm_joints
+)
 
 def main():
     # 连接PyBullet
@@ -13,6 +20,14 @@ def main():
         print("num_all_joints:", len(robot.joints))
         print("num_movable_joints:", len(robot.movable_joints))
         print("movable_joint_indices:", robot.movable_joint_indices)
+        print("end_effector_link_name:", robot.spec.end_effector_link_name)
+        print("end_effector_link_index:", robot.end_effector_link_index)
+
+        reset_arm_joints(robot)
+
+        ee_pos, ee_quat = get_end_effector_pose(robot)
+        print("end_effector_position:", ee_pos)
+        print("end_effector_orientation:", ee_quat)
 
         for joint in robot.joints:
             print(
