@@ -4,12 +4,8 @@ URDF加载机械臂并提供关节和末端位姿接口
 
 from dataclasses import dataclass
 from pathlib import Path
-import re
-from shlex import join
-from unittest.mock import DEFAULT
 
 import pybullet as p
-from torch import clamp
 
 # 区分可控关节 urdf中一些固定关节用于关节零点偏置修正
 MOVABLE_JOINT_TYPES = {
@@ -47,7 +43,7 @@ class RobotSpec:
     use_self_collision: bool = False
 
     # 末端执行器
-    end_effector_link_name: str = "Empty_Link6"
+    end_effector_link_name: str = "TCP_link"
 
 # 关节结构化信息
 @dataclass(frozen=True)
@@ -207,6 +203,10 @@ def load_robot(client_id: int, spec: RobotSpec) -> LoadedRobot:
     # 读取关节信息
     joints = _read_joints_models(client_id, body_id)
 
+    # # PyBullet 对这份 SolidWorks 导出的 URDF 会把多个 mesh 的颜色合并，
+    # # 这里按 URDF 中每个 link 的 rgba 强制覆写一次。
+    # _apply_urdf_visual_colors(client_id, body_id, spec.urdf_path, joints)
+
     # 筛选出可动关节
     movable_joints = [joint for joint in joints if joint.joint_type in MOVABLE_JOINT_TYPES]
 
@@ -226,6 +226,18 @@ def get_link_pose(robot: LoadedRobot, link_index: int) -> tuple[tuple[float, flo
 
     world_position = state[4]  # 世界坐标系下的位置
     world_orientation = state[5]  # 世界坐标系下的四元数
+
+    return world_position, world_orientation
+
+
+def get_link_com_pose(
+    robot: LoadedRobot,
+    link_index: int,
+) -> tuple[tuple[float, float, float], tuple[float, float, float, float]]:
+    state = p.getLinkState(robot.body_id, link_index, physicsClientId=robot.client_id)
+
+    world_position = state[0]
+    world_orientation = state[1]
 
     return world_position, world_orientation
 

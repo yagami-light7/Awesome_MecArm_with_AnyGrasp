@@ -29,7 +29,7 @@
           filename="package://mec_arm_model/meshes/base_link.STL" />
       </geometry>
       <material
-        name="">
+        name="1">
         <color
           rgba="0.080000 0.040000 0.180000 1" />
       </material>
@@ -70,7 +70,7 @@
           filename="package://mec_arm_model/meshes/Empty_Link1.STL" />
       </geometry>
       <material
-        name="">
+        name="2">
         <color
           rgba="0.120000 0.080000 0.520000 1" />
       </material>
@@ -130,7 +130,7 @@
           filename="package://mec_arm_model/meshes/Empty_Link2.STL" />
       </geometry>
       <material
-        name="">
+        name="3">
         <color
           rgba="0.110000 0.120000 0.580000 1" />
       </material>
@@ -190,7 +190,7 @@
           filename="package://mec_arm_model/meshes/Empty_Link3.STL" />
       </geometry>
       <material
-        name="">
+        name="4">
         <color
           rgba="0.090000 0.180000 0.650000 1" />
       </material>
@@ -250,7 +250,7 @@
           filename="package://mec_arm_model/meshes/Empty_Link4.STL" />
       </geometry>
       <material
-        name="">
+        name="5">
         <color
           rgba="0.070000 0.300000 0.700000 1" />
       </material>
@@ -326,7 +326,7 @@
           filename="package://mec_arm_model/meshes/Empty_Link5.STL" />
       </geometry>
       <material
-        name="">
+        name="6">
         <color
           rgba="0.070000 0.420000 0.760000 1" />
       </material>
@@ -402,7 +402,7 @@
           filename="package://mec_arm_model/meshes/Empty_Link6.STL" />
       </geometry>
       <material
-        name="">
+        name="7">
         <color
           rgba="0.090000 0.560000 0.820000 1" />
       </material>
@@ -452,5 +452,18 @@
       link="Empty_Link6" />
   </joint>
   
+  <link name="TCP_link" />
+
+  <joint 
+    name="TCP_fixed_joint" 
+    type="fixed">
+    <origin
+      xyz="0 0 0.20"
+      rpy="0 0 -0.8724" />
+    <parent
+      link="Empty_Link6" />
+    <child
+      link="TCP_link" />
+  </joint>
 
 </robot>
