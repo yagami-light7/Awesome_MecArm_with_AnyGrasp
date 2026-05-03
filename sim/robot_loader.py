@@ -203,10 +203,6 @@ def load_robot(client_id: int, spec: RobotSpec) -> LoadedRobot:
     # 读取关节信息
     joints = _read_joints_models(client_id, body_id)
 
-    # # PyBullet 对这份 SolidWorks 导出的 URDF 会把多个 mesh 的颜色合并，
-    # # 这里按 URDF 中每个 link 的 rgba 强制覆写一次。
-    # _apply_urdf_visual_colors(client_id, body_id, spec.urdf_path, joints)
-
     # 筛选出可动关节
     movable_joints = [joint for joint in joints if joint.joint_type in MOVABLE_JOINT_TYPES]
 

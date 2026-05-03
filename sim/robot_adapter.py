@@ -3,9 +3,11 @@
 '''
 
 from dataclasses import dataclass
+from decimal import Clamped
 import time
 
 import pybullet as p
+from torch import clamp
 
 from sim.robot_loader import (
     DEFAULT_HOME_JOINT_POSITIONS,
@@ -17,7 +19,7 @@ from sim.robot_loader import (
 @dataclass(frozen=True)
 class JointControlConfig:
     # 力矩缩放
-    force_scale : float = 1.0
+    force_scale : float = 10.0
 
     # 位置误差容忍
     position_tolerance: float = 0.01
@@ -78,6 +80,25 @@ class RobotAdapter:
         reset_arm_joints(self.robot)
 
 
+    #关节目标限幅函数 
+    def clamp_joint_targets(
+            self,
+            target_positions: dict[str, float]
+    )-> dict[str, float]:
+        clamped_targets: dict[str, float] = {}
+
+        for joint in self.robot.movable_joints:
+            if joint.name not in target_positions:
+                continue
+            
+            target_pos = target_positions[joint.name]
+            clamped_pos = max(joint.lower_limit, min(joint.upper_limit, target_pos))
+            clamped_targets[joint.name] = clamped_pos
+        
+        return clamped_targets
+    
+
+
     # 关节位置控制
     def command_joint_positions(
             self,
@@ -87,23 +108,27 @@ class RobotAdapter:
             if joint.name not in target_positions:
                 continue
             
-            target_pos = target_positions[joint.name]
+            clamped_targets = self.clamp_joint_targets(target_positions)
+
+            target_pos = clamped_targets[joint.name]
             p.setJointMotorControl2(
                 bodyUniqueId=self.robot.body_id,
                 jointIndex=joint.index,
                 controlMode=p.POSITION_CONTROL,
                 targetPosition=target_pos,
                 force=joint.max_force * self.control.force_scale,
+                maxVelocity=joint.max_velocity,
                 physicsClientId=self.robot.client_id
             )
 
 
     # 误差检查接口
     def is_at_joint_positions(self, target_positions: dict[str, float]) -> bool:
+        clamped_targets = self.clamp_joint_targets(target_positions)
         current_positions = self.get_joint_position_map()
 
         # 检查每个关节位置误差是否在容忍范围内
-        for joint_name, target_pos in target_positions.items():
+        for joint_name, target_pos in clamped_targets.items():
             if joint_name not in current_positions:
                 continue
 
@@ -145,8 +170,9 @@ class RobotAdapter:
             target_positions: dict[str, float],
             sleep: bool = False
     )-> bool:
-        self.command_joint_positions(target_positions)
-        return self.wait_until_joint_positions_reached(target_positions, sleep=sleep)
+        clamped_targets = self.clamp_joint_targets(target_positions)
+        self.command_joint_positions(clamped_targets)
+        return self.wait_until_joint_positions_reached(clamped_targets, sleep=sleep)
     
     # 停止关节控制
     def stop_joints(self) -> None:
