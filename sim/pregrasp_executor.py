@@ -1,4 +1,5 @@
-from dataclasses import dataclass
+from dataclasses import dataclass, field
+import math
 import pybullet as p
 
 from sim.grasp_targets import TopDownGraspTarget
@@ -11,16 +12,21 @@ from sim.robot_loader import get_end_effector_pose
 class PregraspConfig:
     # IK位置容差
     position_tolerance: float = 0.01
-
+    # 姿态角度容差
+    orientation_tolerance: float = 0.15
     # 是否在运动时按真实时间
     sleep:bool = True
+
+    # 世界坐标系下固定的top-down姿态
+    topdown_quat : tuple[float, float, float, float] | None = None
+
 
 
 # 执行器
 @dataclass
 class PregraspExecutor:
     adapter: RobotAdapter
-    config: PregraspConfig = PregraspConfig()
+    config: PregraspConfig = field(default_factory=PregraspConfig)
 
     # 将IK结果转换为Joint map
     def _ik_solution_to_joint_map(
@@ -46,7 +52,9 @@ class PregraspExecutor:
             target:TopDownGraspTarget
     )->dict[str, float]:
         
-        return self.solve_joint_positions_for_xyz(target.pregrasp_xyz)
+        if self.config.topdown_quat is None:
+            raise ValueError("Top-down quaternion is not set in config")
+        return self.solve_joint_positions_for_pose(target.pregrasp_xyz, self.config.topdown_quat)
     
 
     # 通用xyz IK接口
@@ -67,12 +75,33 @@ class PregraspExecutor:
         joint_posotions = self._ik_solution_to_joint_map(ik_solution)
         return joint_posotions
 
+    # 通用姿态IK接口
+    def solve_joint_positions_for_pose(
+            self,
+            target_xyz: tuple[float, float, float],
+            target_quat: tuple[float, float, float, float]
+    )->dict[str, float]:
+
+        robot = self.adapter.robot
+
+        ik_solution = p.calculateInverseKinematics(
+            robot.body_id,
+            robot.end_effector_link_index,
+            target_xyz,
+            target_quat,
+            physicsClientId=robot.client_id
+        )
+    
+        joint_posotions = self._ik_solution_to_joint_map(ik_solution)
+        return joint_posotions
+
+
     # 执行预抓取位姿
     def execute_pregrasp(
             self,
             target:TopDownGraspTarget
     )->bool:
-        return self.execute_xyz(target.pregrasp_xyz)
+        return self.execute_topdown_pose(target.pregrasp_xyz)
     
     # 通用xyz执行接口
     def execute_xyz(
@@ -85,6 +114,30 @@ class PregraspExecutor:
 
         return reached
     
+    # 通用位姿执行接口
+    def execute_pose(
+            self,
+            target_xyz: tuple[float, float, float],
+            target_quat: tuple[float, float, float, float]
+    )->bool:
+    
+        joint_positions = self.solve_joint_positions_for_pose(target_xyz, target_quat)
+        
+        reached = self.adapter.move_joints(joint_positions, sleep=self.config.sleep)
+
+        return reached
+    
+    # top-down位姿执行接口
+    def execute_topdown_pose(
+            self,
+            target_xyz: tuple[float, float, float]
+    )->bool:
+
+        if self.config.topdown_quat is None:
+            raise ValueError("Top-down quaternion is not set")
+
+        return self.execute_pose(target_xyz, self.config.topdown_quat)
+
     # PreGrasp 误差检查
     def get_pregrasp_position_error(
             self,
@@ -106,3 +159,19 @@ class PregraspExecutor:
         dz = current_pos[2] - target_xyz[2]
 
         return dx, dy, dz
+    
+    # 利用四元数计算姿态误差
+    def get_orientation_error_rad(
+            self,
+            target_quat: tuple[float, float, float, float],
+    ) -> float:
+        # 获取当前末端执行器的姿态
+        _, current_quat = get_end_effector_pose(self.adapter.robot)
+
+        dot = sum(c * t for c, t in zip(current_quat, target_quat))
+        dot = abs(dot)
+        dot = max(min(dot, 1.0), -1.0)  
+
+        angle_rad = 2 * math.acos(dot)
+
+        return angle_rad

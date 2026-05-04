@@ -21,6 +21,9 @@ class JointControlConfig:
     # 力矩缩放
     force_scale : float = 10.0
 
+    # 速度缩放
+    velocity_scale : float = 0.1
+
     # 位置误差容忍
     position_tolerance: float = 0.01
 
@@ -117,7 +120,7 @@ class RobotAdapter:
                 controlMode=p.POSITION_CONTROL,
                 targetPosition=target_pos,
                 force=joint.max_force * self.control.force_scale,
-                maxVelocity=joint.max_velocity,
+                maxVelocity=joint.max_velocity * self.control.velocity_scale,
                 physicsClientId=self.robot.client_id
             )
 
